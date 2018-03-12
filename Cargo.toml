@@ -1,0 +1,9 @@
+[package]
+name = "actos"
+version = "0.1.0"
+authors = ["Angelo Bulfone <mbulfone@gmail.com>"]
+panic = "abort"
+
+[dependencies]
+rlibc = "1.0"
+volatile = "0.2.3"
