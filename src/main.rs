@@ -5,7 +5,7 @@
 extern crate rlibc;
 extern crate volatile;
 
-//mod module;
+mod module;
 
 use volatile::WriteOnly;
 
@@ -39,7 +39,7 @@ unsafe fn set_stack() {
 }
 
 #[no_mangle]
-pub fn start() -> !{
+pub fn _start() -> !{
 	hello();
 	loop {}
 }

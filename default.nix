@@ -16,7 +16,9 @@ nightly.buildRustPackage {
 	RUSTFLAGS = "-L ${pkgs.rustChannels.nightly.rust-std}/lib/rustlib/${stdenv.targetPlatform.config}/lib/";
 	cargoSha256 = "1krj52zix6z21npd8ck2r8ac9dc1c1nl971p0wswfig4y97by34h";
 
-	buildInputs = [ pkgs.extraRust.xargo rustChannels.nightly.rust-src pkgs.extraRust.bootimage ];
+	buildInputs = [ pkgs.extraRust.bootimage ];
+	buildPhase = "bootimage --release --target x86_64-actos";
+	installPhase = "cp bootimage.bin $out/";
 
     doCheck = false;
 }
