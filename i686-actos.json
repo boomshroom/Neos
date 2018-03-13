@@ -1,11 +1,11 @@
 {
-  "llvm-target": "i386-unknown-none",
+  "llvm-target": "i686-unknown-none",
   "data-layout": "e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128",
   "linker-flavor": "ld.lld",
   "target-endian": "little",
   "target-pointer-width": "32",
   "target-c-int-width": "32",
-  "arch": "i386",
+  "arch": "i686",
   "os": "none",
   "disable-redzone": true,
   "features": "-mmx,-sse,+soft-float",

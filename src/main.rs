@@ -5,13 +5,9 @@
 extern crate rlibc;
 extern crate volatile;
 
-mod module;
+//mod module;
 
 use volatile::WriteOnly;
-
-#[allow(unused_attributes)]
-#[link_args = "-nostdlib -static -estart -Tx86.ld -gc-sections -n"]
-extern {}
 
 #[repr(align(4096))]
 pub struct Stack ([u8; 4096]);
@@ -43,18 +39,29 @@ unsafe fn set_stack() {
 }
 
 #[no_mangle]
+pub fn start() -> !{
+	hello();
+	loop {}
+}
+
+#[no_mangle]
 pub extern "C" fn hello() {
 	let fb = unsafe { &mut *(0xb8000 as *mut [[WriteOnly<(u8, u8)>;80];25]) };
 	fb.iter_mut().flat_map(|x|x.iter_mut()).for_each(|cell| cell.write((' ' as u8, 0x00)));
     
-    module::send_message(1, 0, b"Hello, World!", |_, _, _| loop {});
+	fb.iter_mut().flat_map(|x|x.iter_mut()).zip(b"Hello, World!").for_each(|(cell, &ch)| cell.write((ch, 0x07)));
+
+    //module::send_message(1, 0, b"Hello, World!", |_, _, _| loop {});
 }
 
 #[lang = "eh_personality"] #[no_mangle] pub extern fn eh_personality() {}
-#[lang = "panic_fmt"] #[no_mangle] pub extern fn panic_fmt() -> ! {loop{}}
+#[lang = "panic_fmt"] #[no_mangle]
+pub extern fn rust_begin_panic(_msg: core::fmt::Arguments, _file: &'static str, _line: u32, _column: u32) -> ! {
+	loop{}
+}
 
-#[no_mangle] pub extern "C" fn _Unwind_Resume() -> ! { loop {} }
 
+#[cfg(target_arch = "x86")] 
 pub mod mb_header {
 	global_asm!(r#"
 		.pushsection .multiboot
