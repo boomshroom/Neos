@@ -1,4 +1,4 @@
-#![feature(lang_items,start,link_args,naked_functions,asm,attr_literals,global_asm,const_fn,specialization)]
+#![feature(lang_items,start,link_args,naked_functions,asm,attr_literals,global_asm,const_fn,specialization,nll)]
 #![no_std]
 #![no_main]
 
@@ -11,7 +11,7 @@ extern crate spin;
 mod module;
 mod terminal;
 
-use terminal::vga::Op;
+use terminal::Op;
 
 #[cfg(target_arch = "x86")]
 mod x86;

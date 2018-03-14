@@ -4,12 +4,14 @@ use lazy_static::lazy::Lazy;
 use core::ops::Deref;
 
 use super::terminal::vga::FrameBuffer;
+use super::terminal::Terminal;
+use super::terminal::serial::SerialPort;
 
 pub trait Module {
 	fn receive_message(&mut self, op: u32, data: &[u8], out: &mut [u8]) -> u32;
 }
 
-type ModHandle = usize;
+pub type ModHandle = usize;
 
 struct Handler {
 	mods: &'static [&'static LockedModule],
@@ -18,10 +20,12 @@ struct Handler {
 
 static MAIN : MainMod = MainMod;
 static COUNT : Mutex<Counter> = Mutex::new(Counter(0));
-static HANDLER : Mutex<Handler> = Mutex::new(Handler{ mods: &[&MAIN, &FB, &COUNT], current: 0 });
+static TERMINAL: Mutex<Terminal> = Mutex::new(Terminal::new(1, 4));
+static HANDLER : Mutex<Handler> = Mutex::new(Handler{ mods: &[&MAIN, &FB, &COUNT, &TERMINAL, &SERIAL], current: 0 });
 
 lazy_static! {
 	static ref FB: Mutex<FrameBuffer> = Mutex::new(unsafe { FrameBuffer::new() });
+    static ref SERIAL: Mutex<SerialPort> = Mutex::new(SerialPort::init());
 }
 pub trait LockedModule : Sync + Send {
 	fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32;
@@ -40,6 +44,12 @@ impl LockedModule for FB {
 	}
 }
 
+impl LockedModule for SERIAL {
+    fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
+        Mutex::receive_message(self.deref(), op, data, output)
+    }
+}
+
 pub fn send_message(reciever: ModHandle, op: u32, data: &[u8], callback: Option<fn(&LockedModule, &[u8], u32)>) {
     let mut buffer = [0; 256];
     let (old_id, old, new) = {
@@ -55,6 +65,10 @@ pub fn send_message(reciever: ModHandle, op: u32, data: &[u8], callback: Option<
     }
 
     callback.map(|callback| callback(old, &mut buffer, status));
+}
+
+pub fn pause() {
+    // TODO
 }
 
 struct Counter (u32);

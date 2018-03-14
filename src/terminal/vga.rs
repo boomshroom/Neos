@@ -2,6 +2,7 @@ use volatile::Volatile;
 use core::convert::AsRef;
 
 use super::super::module::Module;
+use super::{Color, PUTS, PUTC, SETCOLOR, CLEAR};
 
 pub struct FrameBuffer {
     fb: &'static mut Buffer,
@@ -17,43 +18,6 @@ pub struct Cell (u8, ColorCode);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ColorCode (u8);
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
-pub enum Color {
-    Black      = 0,
-    Blue       = 1,
-    Green      = 2,
-    Cyan       = 3,
-    Red        = 4,
-    Magenta    = 5,
-    Brown      = 6,
-    LightGray  = 7,
-    DarkGray   = 8,
-    LightBlue  = 9,
-    LightGreen = 10,
-    LightCyan  = 11,
-    LightRed   = 12,
-    Pink       = 13,
-    Yellow     = 14,
-    White      = 15,
-}
-
-#[repr(u32)]
-pub enum Op {
-	PutS,
-	PutC,
-	//SetPos,
-	SetColor,
-	Clear,
-}
-
-pub const PUTS: u32 = Op::PutS as u32;
-pub const PUTC: u32 = Op::PutC as u32;
-//pub const SETPOS: u32 = Op::SetPos as u32;
-pub const SETCOLOR: u32 = Op::SetColor as u32;
-pub const CLEAR: u32 = Op::Clear as u32;
 
 const TAB_WIDTH : usize = 8;
 
