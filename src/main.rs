@@ -1,18 +1,25 @@
-#![feature(lang_items,start,link_args,naked_functions,asm,attr_literals,global_asm)]
+#![feature(lang_items,start,link_args,naked_functions,asm,attr_literals,global_asm,const_fn,specialization)]
 #![no_std]
 #![no_main]
 
 extern crate rlibc;
 extern crate volatile;
+extern crate spin;
+
+#[macro_use] extern crate lazy_static;
 
 mod module;
+mod terminal;
 
-use volatile::WriteOnly;
+use terminal::vga::Op;
 
 #[repr(align(4096))]
+#[cfg(target_arch = "x86")]
 pub struct Stack ([u8; 4096]);
 
-#[no_mangle] pub static STACK: Stack = Stack([0; 4096]);
+#[no_mangle]
+#[cfg(target_arch = "x86")]
+pub static STACK: Stack = Stack([0; 4096]);
 
 #[no_mangle]
 #[naked]
@@ -39,6 +46,7 @@ unsafe fn set_stack() {
 }
 
 #[no_mangle]
+#[cfg(target_arch = "x86_64")]
 pub fn _start() -> !{
 	hello();
 	loop {}
@@ -46,12 +54,9 @@ pub fn _start() -> !{
 
 #[no_mangle]
 pub extern "C" fn hello() {
-	let fb = unsafe { &mut *(0xb8000 as *mut [[WriteOnly<(u8, u8)>;80];25]) };
-	fb.iter_mut().flat_map(|x|x.iter_mut()).for_each(|cell| cell.write((' ' as u8, 0x00)));
-    
-	fb.iter_mut().flat_map(|x|x.iter_mut()).zip(b"Hello, World!").for_each(|(cell, &ch)| cell.write((ch, 0x07)));
-
-    //module::send_message(1, 0, b"Hello, World!", |_, _, _| loop {});
+	module::send_message(1, Op::Clear as u32, &[], Some(|_, _, _| {
+		module::send_message(1, Op::PutS as u32, b"Hello, World!", Some(|_, _, _| loop {}));
+	}));
 }
 
 #[lang = "eh_personality"] #[no_mangle] pub extern fn eh_personality() {}

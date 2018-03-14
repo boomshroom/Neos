@@ -8,6 +8,10 @@ rlibc = "1.0"
 volatile = "0.2.3"
 spin = "0.4.6"
 
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
 [profile.dev]
 panic = "abort"
 

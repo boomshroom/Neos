@@ -5,10 +5,13 @@
   "target-endian": "little",
   "target-pointer-width": "32",
   "target-c-int-width": "32",
-  "arch": "i386",
+  "arch": "x86",
   "os": "none",
   "disable-redzone": true,
   "features": "-mmx,-sse,+soft-float",
   "executables": true,
-  "panic-strategy": "abort"
+  "panic-strategy": "abort",
+  "pre-link-args": {
+    "ld": ["-Tx86.ld"]
+  }
 }
