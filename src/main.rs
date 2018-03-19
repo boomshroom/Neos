@@ -12,6 +12,7 @@ mod module;
 mod terminal;
 
 use terminal::Op;
+use module::MainMod;
 
 #[cfg(target_arch = "x86")]
 mod x86;
@@ -25,9 +26,9 @@ pub fn _start() -> !{
 
 #[no_mangle]
 pub extern "C" fn hello() {
-	module::send_message(1, Op::Clear as u32, &[], Some(|_, _, _| {
-		module::send_message(3, Op::PutS as u32, b"Hello, World!", Some(|_, _, _| {
-			module::send_message(3, Op::PutS as u32, b"\nTerminal in working order!", Some(|_, _, _| loop {}));
+	module::send_message(1, Op::Clear as u32, &[], Some(|_: &mut MainMod, _, _| {
+		module::send_message(3, Op::PutS as u32, b"Hello, World!", Some(|_: &mut MainMod, _, _| {
+			module::send_message(3, Op::PutS as u32, b"\nTerminal in working order!", Some(|_: &mut MainMod, _, _| loop {}));
 		}));
 	}));
 }
