@@ -14,7 +14,7 @@ pub trait Module {
 pub type ModHandle = usize;
 
 struct Handler {
-	mods: &'static [&'static LockedModule],
+	mods: &'static [&'static Mutex<Module>],
     current: ModHandle,
 }
 
@@ -27,30 +27,20 @@ lazy_static! {
 	static ref FB: Mutex<FrameBuffer> = Mutex::new(unsafe { FrameBuffer::new() });
     static ref SERIAL: Mutex<SerialPort> = Mutex::new(SerialPort::init());
 }
-pub trait LockedModule : Sync + Send {
-	fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32;
-}
 
-
-impl <T: Module + Send> LockedModule for Mutex<T> {
+impl Module for FB {
 	fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
-		self.lock().receive_message(op, data, output)
+		FrameBuffer::receive_message(self.deref(), op, data, output)
 	}
 }
 
-impl LockedModule for FB {
-	fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
-		Mutex::receive_message(self.deref(), op, data, output)
-	}
-}
-
-impl LockedModule for SERIAL {
+impl Module for SERIAL {
     fn receive_message(&self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
-        Mutex::receive_message(self.deref(), op, data, output)
+        SerialPort::receive_message(self.deref(), op, data, output)
     }
 }
 
-pub fn send_message(reciever: ModHandle, op: u32, data: &[u8], callback: Option<fn(&LockedModule, &[u8], u32)>) {
+pub fn send_message<T: Module>(reciever: ModHandle, op: u32, data: &[u8], callback: Option<fn(&mut T, &[u8], u32)>) {
     let mut buffer = [0; 256];
     let (old_id, old, new) = {
     	let mut handler = HANDLER.lock();
