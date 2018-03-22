@@ -1,6 +1,5 @@
-
 #[repr(align(4096))]
-pub struct Stack ([u8; 4096]);
+pub struct Stack([u8; 4096]);
 
 #[no_mangle]
 #[cfg(target_arch = "x86")]
@@ -8,27 +7,28 @@ pub static STACK: Stack = Stack([0; 4096]);
 
 #[allow(unused_attributes)]
 #[link_args = "-melf_i386 -nostdlib -static -Tx86.ld -gc-sections -n"]
-extern {}
+extern "C" {}
 
 #[no_mangle]
 #[naked]
-pub unsafe extern fn _start() -> ! {
-	//let top = STACK.last().unwrap();
-	set_stack();
+pub unsafe extern "C" fn _start() -> ! {
+    //let top = STACK.last().unwrap();
+    set_stack();
 
-	asm!("call hello"); // Avoid prelude.
+    asm!("call hello"); // Avoid prelude.
 
-	loop {}
+    loop {}
 }
 
 #[inline(always)]
 #[naked]
 unsafe fn set_stack() {
-	asm!("lea esp, [STACK + 4096]" :::: "intel", "volatile");
+    asm!("lea esp, [STACK + 4096]" :::: "intel", "volatile");
 }
 
 pub mod mb_header {
-	global_asm!(r#"
+    global_asm!(
+        r#"
 		.pushsection .multiboot
 	    multiboot:
 
@@ -42,9 +42,10 @@ pub mod mb_header {
 	    .long FLAGS
 	    .long CHECKSUM
 	    .popsection
-	"#);
+	"#
+    );
 
-	/*
+    /*
 	#[repr(C)]
 	pub struct MBHeader {
 		magic: i32,

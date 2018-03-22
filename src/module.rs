@@ -1,76 +1,104 @@
 use spin::Mutex;
+//use mopa::Any;
 
 use core::ops::DerefMut;
-use core::any::Any;
+use core::any::{Any, TypeId};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
-use super::terminal::vga::FrameBuffer;
-use super::terminal::Terminal;
-use super::terminal::serial::SerialPort;
+use terminal::vga::FrameBuffer;
+use terminal::Terminal;
+use terminal::serial::SerialPort;
 
 pub trait Module: Any + Send {
-	fn receive_message(&mut self, op: u32, data: &[u8], out: &mut [u8]) -> u32;
+    fn receive_message(&mut self, op: u32, data: &[u8], out: &mut [u8]) -> u32;
 }
-
 
 pub type ModHandle = usize;
+pub type AtomicHandle = AtomicUsize;
 
 struct Handler {
-	mods: &'static [&'static Mutex<Module>],
-    current: ModHandle,
+    mods: &'static [&'static Mutex<Module>],
+    current: AtomicHandle,
 }
 
-static MAIN : Mutex<MainMod> = Mutex::new(MainMod);
-static COUNT : Mutex<Counter> = Mutex::new(Counter(0));
-static TERMINAL: Mutex<Terminal> = Mutex::new(Terminal::new(1, 4));
-static HANDLER : Mutex<Handler> = Mutex::new(Handler{ mods: &[&MAIN, &FB, &COUNT, &TERMINAL, &SERIAL], current: 0 });
-static FB : Mutex<FB_LAZY> = Mutex::new(FB_LAZY);
-static SERIAL : Mutex<SERIAL_LAZY> = Mutex::new(SERIAL_LAZY);
+static HANDLER: Handler = Handler {
+    mods: &[&MAIN, &FB, &COUNT, &TERMINAL, &SERIAL],
+    current: AtomicHandle::new(MAIN_HANDLE),
+};
 
-lazy_static! {
-	static ref FB_LAZY: FrameBuffer = unsafe { FrameBuffer::new() };
-    static ref SERIAL_LAZY: SerialPort = SerialPort::init();
-}
+static MAIN: Mutex<MainMod> = Mutex::new(MainMod);
+static COUNT: Mutex<Counter> = Mutex::new(Counter(0));
+static TERMINAL: Mutex<Terminal> = Mutex::new(Terminal::new(FB_HANDLE, SERIAL_HANDLE));
+static FB: Mutex<FrameBuffer> = Mutex::new(FrameBuffer::new());
+static SERIAL: Mutex<SerialPort> = Mutex::new(SerialPort);
 
-impl Module for FB_LAZY {
-	fn receive_message(&mut self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
-		FrameBuffer::receive_message(self.deref_mut(), op, data, output)
-	}
-}
+pub const MAIN_HANDLE: ModHandle = 0;
+pub const COUNT_HANDLE: ModHandle = 2;
+pub const TERMINAL_HANDLE: ModHandle = 3;
+pub const FB_HANDLE: ModHandle = 1;
+pub const SERIAL_HANDLE: ModHandle = 4;
 
-impl Module for SERIAL_LAZY {
-    fn receive_message(&mut self, op: u32, data: &[u8], output: &mut[u8]) -> u32 {
-        SerialPort::receive_message(self.deref_mut(), op, data, output)
+impl Module {
+    fn is<T: Module + Sized>(&self) -> bool {
+        TypeId::of::<T>() == Any::get_type_id(self)
+    }
+
+    fn downcast_mut<T: Module + Sized>(&mut self) -> Option<&mut T> {
+        if self.is::<T>() {
+            Some(unsafe { &mut *(self as *mut Module as *mut T) })
+        } else {
+            None
+        }
+    }
+
+    fn downcast_ref<T: Module + Sized>(&self) -> Option<&T> {
+        if self.is::<T>() {
+            Some(unsafe { &*(self as *const Module as *const T) })
+        } else {
+            None
+        }
     }
 }
 
-pub fn send_message<T: Module + Any>(reciever: ModHandle, op: u32, data: &[u8], callback: Option<fn(&mut T, &[u8], u32)>) {
+pub fn send_message<T: Module, F>(reciever: ModHandle, op: u32, data: &[u8], callback: Option<F>)
+where
+    F: FnOnce(&mut T, &[u8], u32),
+{
     let mut buffer = [0; 256];
     let (old_id, old, new) = {
-    	let mut handler = HANDLER.lock();
-    	let old = handler.current;
-    	handler.current = reciever;
-    	(old, handler.mods[old], handler.mods[reciever])
-	};
+        let old = HANDLER
+            .current
+            .swap(reciever, Ordering::SeqCst);
+        (old, HANDLER.mods[old], HANDLER.mods[reciever])
+    };
 
-    let status = new.lock().receive_message(op, data, &mut buffer);
-    {
-    	HANDLER.lock().current = old_id;
-    }
+    let status = {
+        new.lock().receive_message(op, data, &mut buffer)
+    };
+    
+    HANDLER.current.store(old_id, Ordering::SeqCst);
 
     callback.map(|callback| {
-        let m = old.lock();
-        callback(downcast_mut(m.deref_mut()).expect("Callback expected wrong module type."), &mut buffer, status)
+        let mut m = old.lock();
+        callback(
+            m.downcast_mut()
+                .expect("Callback expected wrong module type."),
+            &mut buffer,
+            status,
+        )
     });
 }
+
+//pub fn respond
 
 pub fn pause() {
     // TODO
 }
 
-struct Counter (u32);
+struct Counter(u32);
 
 impl Module for Counter {
-    fn receive_message(&mut self, _: u32, _: &[u8], out: &mut[u8]) -> u32 {
+    fn receive_message(&mut self, _: u32, _: &[u8], out: &mut [u8]) -> u32 {
         self.0 += 1;
         if out.len() < 4 {
             1
@@ -87,7 +115,7 @@ impl Module for Counter {
 pub struct MainMod;
 
 impl Module for MainMod {
-	fn receive_message(&mut self, _: u32, _: &[u8], _: &mut[u8]) -> u32 {
-		0
-	}
+    fn receive_message(&mut self, _: u32, _: &[u8], _: &mut [u8]) -> u32 {
+        0
+    }
 }

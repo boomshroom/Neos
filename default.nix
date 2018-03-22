@@ -1,10 +1,10 @@
 with import <nixpkgs> {};
 
 let nightly = makeRustPlatform {
-	# inherit (rustChannels.nightly) rustc cargo;
+	inherit (rustChannels.nightly) rustc cargo;
 	# cargo = pkgs.extraRust.xargo;
-	rustc = pkgs.rustup;
-	cargo = pkgs.rustup;
+	# rustc = pkgs.rustup;
+	# cargo = pkgs.rustup;
 };
 in
 nightly.buildRustPackage {
